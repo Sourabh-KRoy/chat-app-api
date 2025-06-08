@@ -7,6 +7,7 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
 const chatRoutes = require("./routes/chat");
+const User = require("./models/User");
 
 const app = express();
 const server = http.createServer(app);
@@ -17,14 +18,25 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(cors());
 
-// Mount routes
+app.set("io", io); // Make io available to routes
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 
-// Make io available in routes
-app.set("io", io);
+// Socket.io logic
+io.on("connection", (socket) => {
+  console.log("Client connected");
 
-// Connect MongoDB
+  socket.on("join", (userId) => {
+    socket.join(userId);
+    console.log(`User ${userId} joined their room`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected");
+  });
+});
+
+// Connect to DB and start server
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
@@ -33,18 +45,12 @@ mongoose
       console.log(`Server running on port ${process.env.PORT || 5000}`);
     });
   })
-  .catch((err) => console.error(err));
+  .catch((err) => console.error("MongoDB connection error:", err));
 
-// Socket.io logic
-io.on("connection", (socket) => {
-  console.log("New client connected");
 
-  socket.on("join", (userId) => {
-    console.log(`User joined room: ${userId}`);
-    socket.join(userId);
-  });
+  const hacker = async () => {
+    const users = await User.find({})
+    console.log(users);
+  }
 
-  socket.on("disconnect", () => {
-    console.log("Client disconnected");
-  });
-});
+  hacker();
